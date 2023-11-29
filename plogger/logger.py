@@ -3,7 +3,7 @@ from plogger.sink import Sink
 from datetime import datetime
 
 class Logger:
-    sinks = [None] * len(LogLevel)
+    sinks = [[]] * len(LogLevel)
 
     def __init__(self):
         raise RuntimeError("Singleton class's object not allowed")
@@ -11,7 +11,11 @@ class Logger:
     @staticmethod
     def add_sink(sink: Sink, log_levels: list[LogLevel]):
         for level in log_levels:
-            Logger.sinks[level.value] = sink
+            if Logger.sinks[level.value]:
+                Logger.sinks[level.value].append(sink)
+                # raise RuntimeError("Sink already defined for the log level", level.value)
+            else:
+                Logger.sinks[level.value] = [sink]
         
     @staticmethod
     def log(log_level: LogLevel, msg: str, namespace: str, sink: Sink = None):
@@ -19,4 +23,8 @@ class Logger:
         if sink != None:
             sink.write(now, log_level, namespace, msg)
         elif Logger.sinks[log_level.value] != None:
-            Logger.sinks[log_level.value].write(now, log_level, namespace, msg)
+            for x in Logger.sinks[log_level.value]:
+                x.write(now, log_level, namespace, msg)
+
+    
+    

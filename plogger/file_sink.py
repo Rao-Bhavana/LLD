@@ -7,13 +7,12 @@ import os
 import asyncio
 import threading
 
-class FileSink(Sink):
+class BaseFileSink(Sink):
     def __init__(self,
                  path: str,
                  log_level: LogLevel,
                  rotationAfterSzInBytes: int = -1,
                  format: str = "%H:%M:%S.%f - {log_level} - {namespace} - {msg}",
-                 is_async: bool = False,
                  mode = 'a',
                  buffering = 1,
                  **kwargs):
@@ -22,43 +21,23 @@ class FileSink(Sink):
         self._cur_size = 0
         self._log_level = log_level
         self._format = format
-        self._is_async = is_async
         self._kwargs = {**kwargs, "mode": mode, "buffering": buffering}
+        self._file = None
 
         # creation of log file
         self.open_file()
-
-        if self._is_async:
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-            self._thread = threading.Thread(target=self.run_async_loop)
-            self._thread.setDaemon(True)
-            self._thread.start()
-
-    def run_async_loop(self):
-        self._loop.run_forever()
+      
 
     def open_file(self):
         dirname = os.path.dirname(self._path)
         os.makedirs(dirname, exist_ok=True) # create if directory doesn't exist
         self._file = open(self._path, **self._kwargs)
 
-
     def write(self, tp: datetime, log_level: LogLevel, namespace: str, msg: str):
-        if self._is_async:
-            if self._loop.is_running:
-                self._loop.call_soon_threadsafe(self.write_impl, tp, log_level, namespace, msg)
-        else:
-            self.write_impl(tp, log_level, namespace, msg)
-
-    def write_impl(self, tp: datetime, log_level: LogLevel, namespace: str, msg: str):
         if log_level.value > self._log_level.value:
             return
         
-        updated_msg = tp.strftime(self._format)
-        updated_msg = updated_msg.replace("{log_level}", log_level.name)
-        updated_msg = updated_msg.replace("{namespace}", namespace)
-        updated_msg = updated_msg.replace("{msg}", msg)
+        updated_msg = self.update_msg(tp, log_level, namespace, msg, self._format)
 
         # now = datetime.now()
         # diff = now - tp
@@ -88,12 +67,5 @@ class FileSink(Sink):
 
     def stop(self):
         self.close_file()
-        if self._is_async:
-            self._loop.stop()
-            self._thread.join()
-
-    def __del__(self):
-        self.stop()
-        
 
 

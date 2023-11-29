@@ -16,10 +16,7 @@ class ConsoleSink(Sink):
         if log_level.value > self._log_level.value:
             return
         
-        updated_msg = tp.strftime(self._format)
-        updated_msg = updated_msg.replace("{log_level}", log_level.name)
-        updated_msg = updated_msg.replace("{namespace}", namespace)
-        updated_msg = updated_msg.replace("{msg}", msg)
+        updated_msg = self.update_msg(tp, log_level, namespace, msg, self._format)
 
         sys.stdout.write(updated_msg + "\n")
 
